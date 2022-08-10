@@ -8,6 +8,7 @@ using System.Device.Gpio;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
+using RaspiRest.Entity;
 
 namespace RaspiRest.Controllers
 {
@@ -16,24 +17,24 @@ namespace RaspiRest.Controllers
     public class IotApiController : ControllerBase
     {
         // The access key which allows requests from external clients to be honored and processed.
-        // This is static, and should be fairly complex (e.g. GUID plus some extra prefix, infixes , and/or suffix.
+        // This is static, and should be fairly complex (e.g. GUID plus some extra prefix, infixes, and/or suffix.
         private string _SITE_AccessKey = "endpoint protection value from config";
 
         // If this, then that (IFTTT.comn) webhook prototype  (this server ==to==> IFTTT event)
         private string _IFTTT_BaseAddress = "https://maker.ifttt.com/trigger/{0}/with/key/{1}";
 
-        // johnmikeralph
+        // The webhook key to trigger an event within the IFTTT account.
         private string _IFTTT_WebhookAccessKey = "IFTTT-provided value from config";
 
         // injected
         private readonly ILogger _logger;
-        private Flash _flash;
+        private LedList _flashList;
         private Notify _notify;
 
-        public IotApiController(ILoggerFactory loggerFactory, IConfiguration config, Flash flash, Notify notify)
+        public IotApiController(ILoggerFactory loggerFactory, IConfiguration config, LedList flashList, Notify notify)
         {
             _logger = loggerFactory.CreateLogger("Misc");
-            _flash = flash;
+            _flashList = flashList;
             _notify = notify;
             _SITE_AccessKey = config.GetValue<string>("SITE_AccessKey");
             _IFTTT_WebhookAccessKey = config.GetValue<string>("IFTTT_WebhookAccessKey");
@@ -70,7 +71,8 @@ namespace RaspiRest.Controllers
 
             try
             {
-                if (eventName == "xo")
+                // Triggers an email
+                if (eventName == "email")
                 {
                     _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: xo (execute order), Value1: {value1}, Value2: {value2}, Value3: {value3}");
 
@@ -93,9 +95,10 @@ namespace RaspiRest.Controllers
                     return Ok("Accepted");
                 }
 
-                if (eventName == "mdet1")
+                // Triggers an event on IFTTT via a webhook
+                if (eventName == "webhook")
                 {
-                    _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: motion1 (motion detector test)");
+                    _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: webhook (send an email)");
 
                     var webhookEvent = new WebhookAction
                     {
@@ -126,22 +129,35 @@ namespace RaspiRest.Controllers
                     return Ok("Accepted");
                 }
 
-                if (eventName == "led_on")
+                // "set light {text}" ... value2 contains the spoken text.  It must be parsed for the light identifier, and the action.
+                if (eventName == "led_control")
                 {
-                    _flash.LightVisibility = Flash.LightState.On;
+                    var wordList = value2.Trim().ToLower().Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+                    var flashMode = Led.FlashMode.Help;
+                    var ledName = _flashList.LED[0].Name;
+                    var visibility = Led.LightState.Flashing;
+                    foreach (var item in wordList)
+                    {
+                        Enum.TryParse<Led.FlashMode>(item, out flashMode);
+                        Enum.TryParse<Led.LightState>(item, out visibility);
+                        var led = _flashList.LED.Where(t => t.Name == item).FirstOrDefault();
+                        if (led != null)
+                        {
+                            ledName = led.Name;
+                        }
+                    }
+                    var thisLed = _flashList.LED.Where(t => t.Name == ledName).FirstOrDefault();
+                    thisLed.FlashingMode = flashMode;
+                    thisLed.LightVisibility = visibility;
+
                     _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: led_on (LED on)");
 
-#if USE_GPIO
-                    GpioController controller = new GpioController(_flash.PinScheme);
-                    controller.OpenPin(_flash.LedPin, PinMode.Output);
-                    controller.Write(_flash.LedPin, PinValue.High);
-#endif
                     return Ok("Accepted");
                 }
 
                 if (eventName == "led_off")
                 {
-                    _flash.LightVisibility = Flash.LightState.Off;
+                    _flash.LightVisibility = Led.LightState.Off;
                     _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: led_off (LED off)");
                     return Ok("Accepted");
                 }
@@ -149,8 +165,8 @@ namespace RaspiRest.Controllers
                 if (eventName == "led_toggle")
                 {
                     _flash.LightVisibility = (
-                            _flash.LightVisibility == Flash.LightState.Flashing ? Flash.LightState.Off :
-                            (_flash.LightVisibility == Flash.LightState.On ? Flash.LightState.Off : Flash.LightState.On)
+                            _flash.LightVisibility == Led.LightState.Flashing ? Led.LightState.Off :
+                            (_flash.LightVisibility == Led.LightState.On ? Led.LightState.Off : Led.LightState.On)
                         );
                     _logger.LogWarning($"Request from: {Request.HttpContext.Connection.RemoteIpAddress}: Triggered event: led_toggle (LED toggle)");
                     return Ok("Accepted");
@@ -158,8 +174,8 @@ namespace RaspiRest.Controllers
 
                 if (eventName == "led_flash")
                 {
-                    _flash.LightVisibility = Flash.LightState.Flashing;
-                    _flash.FlashingMode = Flash.FlashMode.Fast;
+                    _flash.LightVisibility = Led.LightState.Flashing;
+                    _flash.FlashingMode = Led.FlashMode.Fast;
                     var phrase = value2.ToLower().Replace("\"", string.Empty).Trim();
                     if (_flash.FlashPhrases.ContainsKey(phrase))
                     {

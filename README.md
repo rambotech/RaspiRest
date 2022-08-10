@@ -1,6 +1,6 @@
 # RaspiRest
 An aspnetcore demo for flashing an LED via GPIO on a Raspberry PI. The focus of this project is using an IHostedService to handle GPIO
-and notification activity, which occur on background timer threads which are independent of controller actions.
+and notification activity, which occur on background timer threads and are independent of controller actions.
 
 This is an ideal architecture for hosting a Restful API to receive (and act upon) webhooks sent from IFTTT.com (If This, Then That). The
 example here runs on a Raspberry Pi Model 3+ in my house, with a port open in the router for access.  More about that shortly.
@@ -31,5 +31,24 @@ You will need the following parts:
 The wiring on the breadboard is done like this:
 
 ![alt text](https://github.com/rambotech/RaspiRest/blob/master/assets/Fritzing_Breadboard_Diagram.png)
+
+NOTE: Pin 12 is GPIO #18, which controls the Yellow LED through an on (5 VDC) and off state of that pin.
+Sharp eyes will notice that the Flash.cs file in Entity defaults this to Pin 18.  The setting is overriden
+in the contructor, using a IConfiguration
+
+
+# Preapring the Pi
+
+You will need to have .NET Core 2.1 installed on the Raspberry Pi 3+.  You can following the instructions here: 
+
+![alt text](https://github.com/rambotech/RaspiRest/blob/master/assets/IFTTT_Applets.png)
+
+
+
+![alt text](https://github.com/rambotech/RaspiRest/blob/master/assets/IFTTT_Command.png)
+
+
+
+![alt text](https://github.com/rambotech/RaspiRest/blob/master/assets/IFTTT_Flash.png)
 
 

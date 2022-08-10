@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 
 namespace RaspiRest.Services
 {
-    #region snippet1
     internal class NotifyHostedService : IHostedService, IDisposable
     {
         private readonly ILogger _logger;
@@ -210,5 +209,4 @@ namespace RaspiRest.Services
             _timer?.Dispose();
         }
     }
-    #endregion    
 }

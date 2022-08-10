@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RaspiRest.Entity;
 using RaspiRest.Services;
+using System.Collections.Generic;
 
 namespace RaspiRest
 {
@@ -26,7 +27,7 @@ namespace RaspiRest
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-            services.AddSingleton<Flash>(new Flash(Configuration));
+            services.AddSingleton<LedList>(new LedList(Configuration));
             services.AddHostedService<GpioHostedService>();
             services.AddSingleton<Notify>(new Notify(Configuration));
             services.AddHostedService<NotifyHostedService>();
